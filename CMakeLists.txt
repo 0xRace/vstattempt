@@ -46,11 +46,14 @@ target_link_libraries(SimpleGain
         juce::juce_recommended_warning_flags)
 
 # Set up binary data
-juce_add_binary_data(SimpleGainData SOURCES
-    # Add any binary data files here, such as images
-)
+# If you need to embed any binary files (like images, fonts, etc.), uncomment and add them here:
+# juce_add_binary_data(SimpleGainData SOURCES
+#     Resources/logo.png
+#     Resources/font.ttf
+#     # Add more files as needed
+# )
 
 # Link with binary data if any
-target_link_libraries(SimpleGain
-    PRIVATE
-        SimpleGainData) 
+# target_link_libraries(SimpleGain
+#     PRIVATE
+#         SimpleGainData) 

@@ -11,8 +11,8 @@ SimpleGainProcessor::SimpleGainProcessor()
                     std::make_unique<juce::AudioParameterFloat>(
                         gainID, "Gain", juce::NormalisableRange<float>(-60.0f, 12.0f, 0.1f), 0.0f,
                         "dB", juce::AudioProcessorParameter::genericParameter,
-                        [](float value) { return juce::String(value, 1) + " dB"; },
-                        [](const juce::String& text) { return text.getFloatValue(); })
+                        std::function<juce::String(float, int)>([](float value, int) { return juce::String(value, 1) + " dB"; }),
+                        std::function<float(const juce::String&)>([](const juce::String& text) { return text.getFloatValue(); }))
                 })
 {
     // Add parameter listener
