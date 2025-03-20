@@ -64,6 +64,7 @@ target_link_libraries(SimpleGain
         juce::juce_gui_basics
         juce::juce_gui_extra
         juce::juce_opengl
+        juce::juce_dsp
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
@@ -82,14 +83,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Set up binary data
-# If you need to embed any binary files (like images, fonts, etc.), uncomment and add them here:
-# juce_add_binary_data(SimpleGainData SOURCES
-#     Resources/logo.png
-#     Resources/font.ttf
-#     # Add more files as needed
-# )
+juce_add_binary_data(SimpleGainData SOURCES
+    Untitled.jpg
+)
 
-# Link with binary data if any
-# target_link_libraries(SimpleGain
-#     PRIVATE
-#         SimpleGainData) 
+# Link with binary data
+target_link_libraries(SimpleGain
+    PRIVATE
+        SimpleGainData) 

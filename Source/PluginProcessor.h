@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 //==============================================================================
 /**
@@ -52,15 +53,23 @@ public:
 
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
 
-    // Parameter ID
+    // Parameter IDs
     static const juce::String gainID;
+    static const juce::String modFreqID;
+    static const juce::String modDepthID;
 
 private:
     // Value Tree State for managing parameters
     juce::AudioProcessorValueTreeState parameters;
     
-    // Current gain value (0.0 to 1.0)
+    // Current parameter values
     std::atomic<float> currentGain { 1.0f };
+    std::atomic<float> currentModFreq { 1.0f };
+    std::atomic<float> currentModDepth { 0.0f };
+    
+    // DSP objects
+    juce::dsp::Oscillator<float> modulator;
+    double currentSampleRate { 44100.0 };
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleGainProcessor)

@@ -3,6 +3,8 @@
 
 //==============================================================================
 const juce::String SimpleGainProcessor::gainID = "gain";
+const juce::String SimpleGainProcessor::modFreqID = "modfreq";
+const juce::String SimpleGainProcessor::modDepthID = "moddepth";
 
 SimpleGainProcessor::SimpleGainProcessor()
     : AudioProcessor(BusesProperties()
@@ -17,26 +19,47 @@ SimpleGainProcessor::SimpleGainProcessor()
                         0.0f,
                         juce::AudioParameterFloatAttributes()
                             .withLabel("dB")
+                            .withCategory(juce::AudioParameterFloat::genericParameter)),
+                    std::make_unique<juce::AudioParameterFloat>(
+                        juce::ParameterID(modFreqID, 1),
+                        "Mod Freq",
+                        juce::NormalisableRange<float>(0.1f, 10.0f, 0.1f),
+                        1.0f,
+                        juce::AudioParameterFloatAttributes()
+                            .withLabel("Hz")
+                            .withCategory(juce::AudioParameterFloat::genericParameter)),
+                    std::make_unique<juce::AudioParameterFloat>(
+                        juce::ParameterID(modDepthID, 1),
+                        "Mod Depth",
+                        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+                        0.0f,
+                        juce::AudioParameterFloatAttributes()
+                            .withLabel("%")
                             .withCategory(juce::AudioParameterFloat::genericParameter))
                 })
 {
-    // Add parameter listener
+    // Add parameter listeners
     parameters.addParameterListener(gainID, this);
+    parameters.addParameterListener(modFreqID, this);
+    parameters.addParameterListener(modDepthID, this);
     
-    // Initialize gain value safely
+    // Initialize parameter values
     if (auto* param = parameters.getParameter(gainID))
-    {
         currentGain = juce::Decibels::decibelsToGain(param->getValue());
-    }
-    else
-    {
-        currentGain = 1.0f;
-    }
+    if (auto* param = parameters.getParameter(modFreqID))
+        currentModFreq = param->getValue();
+    if (auto* param = parameters.getParameter(modDepthID))
+        currentModDepth = param->getValue();
+        
+    // Initialize oscillator
+    modulator.initialise([](float x) { return std::sin(x); });
 }
 
 SimpleGainProcessor::~SimpleGainProcessor()
 {
     parameters.removeParameterListener(gainID, this);
+    parameters.removeParameterListener(modFreqID, this);
+    parameters.removeParameterListener(modDepthID, this);
 }
 
 //==============================================================================
@@ -44,8 +67,17 @@ void SimpleGainProcessor::parameterChanged(const juce::String& parameterID, floa
 {
     if (parameterID == gainID)
     {
-        // Convert from dB to linear gain
         currentGain = juce::Decibels::decibelsToGain(newValue);
+    }
+    else if (parameterID == modFreqID)
+    {
+        currentModFreq = newValue;
+        if (currentSampleRate > 0)
+            modulator.setFrequency(currentModFreq);
+    }
+    else if (parameterID == modDepthID)
+    {
+        currentModDepth = newValue;
     }
 }
 
@@ -105,9 +137,9 @@ void SimpleGainProcessor::changeProgramName(int index, const juce::String& newNa
 //==============================================================================
 void SimpleGainProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialization that you need..
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    currentSampleRate = sampleRate;
+    modulator.prepare({ sampleRate, (juce::uint32) samplesPerBlock, 1 });
+    modulator.setFrequency(currentModFreq);
 }
 
 void SimpleGainProcessor::releaseResources()
@@ -136,22 +168,30 @@ void SimpleGainProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     juce::ignoreUnused(midiMessages);
 
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
+    auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
     // Clear any output channels that don't contain input data
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Apply gain to all channels
+    // Process each channel
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         auto* channelData = buffer.getWritePointer(channel);
 
-        // Apply gain to each sample
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
         {
-            channelData[sample] *= currentGain;
+            // Get modulation value (-1 to 1)
+            float modValue = modulator.processSample(0.0f);
+            
+            // Scale modulation by depth (0 to 1)
+            modValue *= currentModDepth;
+            
+            // Apply modulation and gain
+            float inputSample = channelData[sample];
+            float modulatedSample = inputSample * (1.0f + modValue);
+            channelData[sample] = modulatedSample * currentGain;
         }
     }
 }
