@@ -52,12 +52,12 @@ public:
 
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
 
+    // Parameter ID
+    static const juce::String gainID;
+
 private:
     // Value Tree State for managing parameters
     juce::AudioProcessorValueTreeState parameters;
-    
-    // Parameter IDs
-    const juce::String gainID = "gain";
     
     // Current gain value (0.0 to 1.0)
     std::atomic<float> currentGain { 1.0f };

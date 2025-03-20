@@ -2,6 +2,8 @@
 #include "PluginEditor.h"
 
 //==============================================================================
+const juce::String SimpleGainProcessor::gainID = "gain";
+
 SimpleGainProcessor::SimpleGainProcessor()
     : AudioProcessor(BusesProperties()
                    .withInput("Input", juce::AudioChannelSet::stereo(), true)
@@ -9,18 +11,27 @@ SimpleGainProcessor::SimpleGainProcessor()
       parameters(*this, nullptr, "PARAMETERS",
                 {
                     std::make_unique<juce::AudioParameterFloat>(
-                        gainID, "Gain", juce::NormalisableRange<float>(-60.0f, 12.0f, 0.1f), 0.0f,
-                        "dB", juce::AudioProcessorParameter::genericParameter,
-                        std::function<juce::String(float, int)>([](float value, int) { return juce::String(value, 1) + " dB"; }),
-                        std::function<float(const juce::String&)>([](const juce::String& text) { return text.getFloatValue(); }))
+                        juce::ParameterID(gainID, 1),
+                        "Gain",
+                        juce::NormalisableRange<float>(-96.0f, 24.0f, 0.1f),
+                        0.0f,
+                        juce::AudioParameterFloatAttributes()
+                            .withLabel("dB")
+                            .withCategory(juce::AudioParameterFloat::genericParameter))
                 })
 {
     // Add parameter listener
     parameters.addParameterListener(gainID, this);
     
-    // Initialize gain value
-    float gainParam = *parameters.getRawParameterValue(gainID);
-    currentGain = juce::Decibels::decibelsToGain(gainParam);
+    // Initialize gain value safely
+    if (auto* param = parameters.getParameter(gainID))
+    {
+        currentGain = juce::Decibels::decibelsToGain(param->getValue());
+    }
+    else
+    {
+        currentGain = 1.0f;
+    }
 }
 
 SimpleGainProcessor::~SimpleGainProcessor()
@@ -153,7 +164,14 @@ bool SimpleGainProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* SimpleGainProcessor::createEditor()
 {
-    return new SimpleGainEditor (*this);
+    try
+    {
+        return std::make_unique<SimpleGainEditor>(*this).release();
+    }
+    catch (...)
+    {
+        return nullptr;
+    }
 }
 
 //==============================================================================

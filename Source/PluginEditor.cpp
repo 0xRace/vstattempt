@@ -37,8 +37,16 @@ SimpleGainEditor::SimpleGainEditor(SimpleGainProcessor& p)
     addAndMakeVisible(valueLabel);
     
     // Create parameter attachments
-    gainAttachment.reset(new juce::AudioProcessorValueTreeState::SliderAttachment(
-        processor.getParameters(), "gain", gainSlider));
+    try
+    {
+        gainAttachment.reset(new juce::AudioProcessorValueTreeState::SliderAttachment(
+            processor.getParameters(), SimpleGainProcessor::gainID, gainSlider));
+    }
+    catch (...)
+    {
+        // Handle attachment creation failure
+        gainAttachment.reset();
+    }
     
     // Start a timer to update the display
     startTimerHz(30);
@@ -50,6 +58,7 @@ SimpleGainEditor::SimpleGainEditor(SimpleGainProcessor& p)
 SimpleGainEditor::~SimpleGainEditor()
 {
     stopTimer();
+    gainAttachment.reset();
 }
 
 //==============================================================================
@@ -101,10 +110,10 @@ void SimpleGainEditor::sliderValueChanged(juce::Slider* slider)
 void SimpleGainEditor::timerCallback()
 {
     // Update the value display
-    float gainValue = gainSlider.getValue();
-    float gainPercent = juce::Decibels::decibelsToGain(gainValue) * 100.0f;
+    const float gainValue = gainSlider.getValue();
+    const float gainPercent = static_cast<float>(juce::Decibels::decibelsToGain(gainValue) * 100.0);
     
-    valueLabel.setText(juce::String(gainValue, 1) + " dB (" + 
-                       juce::String(gainPercent, 1) + "%)", 
-                       juce::dontSendNotification);
+    juce::String displayText = juce::String(gainValue, 1) + " dB (" + 
+                              juce::String(gainPercent, 1) + "%)";
+    valueLabel.setText(displayText, juce::dontSendNotification);
 } 
